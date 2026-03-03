@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package events;
+
+import "google/protobuf/timestamp.proto";
+
+message PurchaseEventMetadata {
+  uint64 quantity = 1;
+  uint64 price_cents = 2;
+  string currency = 3;
+  string payment_method = 4;
+}
+
+message PurchaseEvent {
+  string user_id = 1;
+  string product_id = 2;
+  string order_id = 3;
+  google.protobuf.Timestamp timestamp = 4;
+  string session_id = 5;
+  PurchaseEventMetadata metadata = 6;
+}

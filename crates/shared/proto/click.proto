@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package events;
+
+import "google/protobuf/timestamp.proto";
+
+message ClickEventMetadata {
+  string source = 1;
+  uint64 position = 2;
+  string category = 3;
+}
+
+message ClickEvent {
+  string user_id = 1;
+  string product_id = 2;
+  google.protobuf.Timestamp timestamp = 3;
+  string session_id = 4;
+  ClickEventMetadata metadata = 5;
+}

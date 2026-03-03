@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package events;
+
+import "google/protobuf/timestamp.proto";
+
+message ViewEventMetadata {
+  string source = 1;
+  uint64 duration_ms = 2;
+  string referrer = 3;
+}
+
+message ViewEvent {
+  string user_id = 1;
+  string product_id = 2;
+  google.protobuf.Timestamp timestamp = 3;
+  string session_id = 4;
+  ViewEventMetadata metadata = 5;
+}

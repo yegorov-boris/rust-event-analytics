@@ -1,4 +1,6 @@
 # rust-event-analytics
 System for collecting and analyzing user events
 
-## todo: add JWT authorization
+## todo:
+* JWT authorization
+* SASL_SSL with Kafka
