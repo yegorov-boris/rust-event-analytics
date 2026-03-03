@@ -20,12 +20,6 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
-#    healthcheck:
-#      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list"]
-#      interval: 10s
-#      timeout: 5s
-#      retries: 5
-#      start_period: 15s
 
   kafka-init:
     image: apache/kafka:4.0.1
