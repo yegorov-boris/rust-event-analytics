@@ -210,6 +210,25 @@ impl EventProducer {
     }
 }
 
+async fn partition_client_with_retry(
+    client: &rskafka::client::Client,
+    topic: &str,
+    partition: i32,
+) -> Arc<PartitionClient> {
+    loop {
+        match client
+            .partition_client(topic, partition, UnknownTopicHandling::Retry)
+            .await
+        {
+            Ok(pc) => return Arc::new(pc),
+            Err(e) => {
+                eprintln!("Waiting for {topic}:{partition}: {e}");
+                tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+            }
+        }
+    }
+}
+
 async fn build_producer(brokers: &str) -> EventProducer {
     let client = ClientBuilder::new(vec![brokers.to_string()])
         .build()
@@ -221,24 +240,9 @@ async fn build_producer(brokers: &str) -> EventProducer {
     let mut purchases = Vec::new();
 
     for partition in 0..3 {
-        clicks.push(Arc::new(
-            client
-                .partition_client("events.clicks", partition, UnknownTopicHandling::Retry)
-                .await
-                .expect("failed to create partition client for events.clicks"),
-        ));
-        views.push(Arc::new(
-            client
-                .partition_client("events.views", partition, UnknownTopicHandling::Retry)
-                .await
-                .expect("failed to create partition client for events.views"),
-        ));
-        purchases.push(Arc::new(
-            client
-                .partition_client("events.purchases", partition, UnknownTopicHandling::Retry)
-                .await
-                .expect("failed to create partition client for events.purchases"),
-        ));
+        clicks.push(partition_client_with_retry(&client, "events.clicks", partition).await);
+        views.push(partition_client_with_retry(&client, "events.views", partition).await);
+        purchases.push(partition_client_with_retry(&client, "events.purchases", partition).await);
     }
 
     EventProducer {
