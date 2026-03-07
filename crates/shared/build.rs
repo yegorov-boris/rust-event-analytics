@@ -4,7 +4,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     std::fs::create_dir_all(out_dir)?;
     prost_build::Config::new()
         .out_dir(out_dir)
-        .type_attribute(".", "#[derive(Debug)]")
         .compile_protos(
             &[
                 "proto/click.proto",
