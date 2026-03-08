@@ -9,6 +9,16 @@ services:
       kafka-init:
         condition: service_completed_successfully
 
+  analytics-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.analytics-api
+    ports:
+      - "8082:8080"
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+
   worker:
     build:
       context: .
