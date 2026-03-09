@@ -6,8 +6,10 @@ edition = "2021"
 [dependencies]
 actix-web = "4.13.0"
 actix-web-validator = "5"
-clickhouse = { version = "0.13", features = ["derive"] }
+clickhouse = "0.13"
 serde = { version = "1.0.228", features = ["derive"] }
 shared = { version = "0.1.0", path = "../shared" }
 tokio = { version = "1.49.0", features = ["full"] }
+utoipa = { version = "5", features = ["actix_extras"] }
+utoipa-swagger-ui = { version = "9", features = ["actix-web"] }
 validator = { version = "0.16", features = ["derive"] }

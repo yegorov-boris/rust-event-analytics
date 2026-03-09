@@ -2,9 +2,11 @@ use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
 use actix_web_validator::Query;
 use clickhouse::Row;
 use serde::{Deserialize, Serialize};
+use utoipa::{IntoParams, OpenApi, ToSchema};
+use utoipa_swagger_ui::SwaggerUi;
 use validator::Validate;
 
-#[derive(Deserialize)]
+#[derive(Deserialize, ToSchema)]
 #[serde(rename_all = "lowercase")]
 enum Metric {
     Views,
@@ -23,21 +25,33 @@ fn validate_period(period: &str) -> Result<(), validator::ValidationError> {
     Ok(())
 }
 
-#[derive(Deserialize, Validate)]
+#[derive(Deserialize, Validate, IntoParams)]
 struct TopProductsQuery {
+    /// Number of products to return (1-100)
     #[validate(range(min = 1, max = 100))]
     limit: u8,
+    /// Time period (e.g. 1h, 12h, 24h)
     #[validate(custom(function = "validate_period"))]
     period: String,
     metric: Metric,
 }
 
-#[derive(Row, Deserialize, Serialize)]
+#[derive(Row, Deserialize, Serialize, ToSchema)]
 struct TopProduct {
     product_id: String,
     count: u64,
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/analytics/top-products",
+    params(TopProductsQuery),
+    responses(
+        (status = 200, description = "Top products by metric", body = Vec<TopProduct>),
+        (status = 400, description = "Invalid query parameters"),
+        (status = 500, description = "Internal server error"),
+    )
+)]
 #[get("/api/v1/analytics/top-products")]
 async fn top_products(
     query: Query<TopProductsQuery>,
@@ -65,6 +79,10 @@ async fn top_products(
     }
 }
 
+#[derive(OpenApi)]
+#[openapi(paths(top_products), components(schemas(TopProduct, Metric)))]
+struct ApiDoc;
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     let ch = web::Data::new(
@@ -75,6 +93,10 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .app_data(ch.clone())
             .service(top_products)
+            .service(
+                SwaggerUi::new("/swagger-ui/{_:.*}")
+                    .url("/api-doc/openapi.json", ApiDoc::openapi()),
+            )
     })
     .bind("0.0.0.0:8080")?
     .run()
