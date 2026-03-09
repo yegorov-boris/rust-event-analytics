@@ -64,7 +64,7 @@ async fn top_products(
     let sql = format!(
         "SELECT product_id, count() AS count \
          FROM {table} \
-         WHERE timestamp >= now() - INTERVAL {hours} HOUR \
+         WHERE minute >= now() - INTERVAL {hours} HOUR \
          GROUP BY product_id \
          ORDER BY count DESC \
          LIMIT {limit}",
@@ -85,8 +85,13 @@ struct ApiDoc;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    let user = std::env::var("CLICKHOUSE_USER").unwrap_or_else(|_| "default".to_string());
+    let password = std::env::var("CLICKHOUSE_PASSWORD").unwrap_or_default();
     let ch = web::Data::new(
-        clickhouse::Client::default().with_url("http://clickhouse:8123"),
+        clickhouse::Client::default()
+            .with_url("http://clickhouse:8123")
+            .with_user(user)
+            .with_password(password),
     );
 
     HttpServer::new(move || {

@@ -15,6 +15,9 @@ services:
       dockerfile: Dockerfile.analytics-api
     ports:
       - "8082:8080"
+    environment:
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: default
     depends_on:
       clickhouse:
         condition: service_healthy
@@ -78,7 +81,7 @@ services:
         soft: 262144
         hard: 262144
     healthcheck:
-      test: ["CMD", "clickhouse-client", "--query", "SELECT 1"]
+      test: ["CMD", "clickhouse-client", "--user", "default", "--password", "default", "--query", "SELECT 1"]
       interval: 5s
       retries: 10
 
