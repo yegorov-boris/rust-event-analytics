@@ -13,5 +13,7 @@ rskafka = "0.5"
 serde = { version = "1.0.228", features = ["derive"] }
 shared = { version = "0.1.0", path = "../shared" }
 tokio = { version = "1.49.0", features = ["full"] }
+utoipa = { version = "5", features = ["actix_extras", "chrono", "uuid"] }
+utoipa-swagger-ui = { version = "9", features = ["actix-web"] }
 uuid = { version = "1", features = ["serde"] }
 validator = { version = "0.16", features = ["derive"] }

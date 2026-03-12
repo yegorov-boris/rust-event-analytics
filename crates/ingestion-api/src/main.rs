@@ -17,6 +17,8 @@ use std::sync::{
     atomic::{AtomicU64, Ordering},
     Arc,
 };
+use utoipa::{OpenApi, ToSchema};
+use utoipa_swagger_ui::SwaggerUi;
 use uuid::Uuid;
 use validator::Validate;
 
@@ -25,7 +27,7 @@ async fn health() -> impl Responder {
     HttpResponse::Ok().finish()
 }
 
-#[derive(Deserialize, Validate)]
+#[derive(Deserialize, Validate, ToSchema)]
 struct ClickEventMetadata {
     #[validate(length(min = 1))]
     source: String,
@@ -34,7 +36,7 @@ struct ClickEventMetadata {
     category: String,
 }
 
-#[derive(Deserialize, Validate)]
+#[derive(Deserialize, Validate, ToSchema)]
 struct ClickEvent {
     user_id: Uuid,
     product_id: Uuid,
@@ -44,6 +46,15 @@ struct ClickEvent {
     metadata: ClickEventMetadata,
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/v1/events/click",
+    request_body = ClickEvent,
+    responses(
+        (status = 200, description = "Event accepted"),
+        (status = 400, description = "Invalid request body"),
+    )
+)]
 #[actix_web::post("/api/v1/events/click")]
 async fn ingest_click(
     body: Json<ClickEvent>,
@@ -69,7 +80,7 @@ async fn ingest_click(
     HttpResponse::Ok().finish()
 }
 
-#[derive(Deserialize, Validate)]
+#[derive(Deserialize, Validate, ToSchema)]
 struct ViewEventMetadata {
     #[validate(length(min = 1))]
     source: String,
@@ -78,7 +89,7 @@ struct ViewEventMetadata {
     referrer: String,
 }
 
-#[derive(Deserialize, Validate)]
+#[derive(Deserialize, Validate, ToSchema)]
 struct ViewEvent {
     user_id: Uuid,
     product_id: Uuid,
@@ -88,6 +99,15 @@ struct ViewEvent {
     metadata: ViewEventMetadata,
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/v1/events/view",
+    request_body = ViewEvent,
+    responses(
+        (status = 200, description = "Event accepted"),
+        (status = 400, description = "Invalid request body"),
+    )
+)]
 #[actix_web::post("/api/v1/events/view")]
 async fn ingest_view(
     body: Json<ViewEvent>,
@@ -113,7 +133,7 @@ async fn ingest_view(
     HttpResponse::Ok().finish()
 }
 
-#[derive(Deserialize, Validate)]
+#[derive(Deserialize, Validate, ToSchema)]
 struct PurchaseEventMetadata {
     quantity: usize,
     price_cents: u64,
@@ -123,7 +143,7 @@ struct PurchaseEventMetadata {
     payment_method: String,
 }
 
-#[derive(Deserialize, Validate)]
+#[derive(Deserialize, Validate, ToSchema)]
 struct PurchaseEvent {
     user_id: Uuid,
     product_id: Uuid,
@@ -134,6 +154,15 @@ struct PurchaseEvent {
     metadata: PurchaseEventMetadata,
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/v1/events/purchase",
+    request_body = PurchaseEvent,
+    responses(
+        (status = 200, description = "Event accepted"),
+        (status = 400, description = "Invalid request body"),
+    )
+)]
 #[actix_web::post("/api/v1/events/purchase")]
 async fn ingest_purchase(
     body: Json<PurchaseEvent>,
@@ -253,6 +282,17 @@ async fn build_producer(brokers: &str) -> EventProducer {
     }
 }
 
+#[derive(OpenApi)]
+#[openapi(
+    paths(ingest_click, ingest_view, ingest_purchase),
+    components(schemas(
+        ClickEvent, ClickEventMetadata,
+        ViewEvent, ViewEventMetadata,
+        PurchaseEvent, PurchaseEventMetadata,
+    ))
+)]
+struct ApiDoc;
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     let producer = web::Data::new(build_producer("kafka:9092").await);
@@ -264,6 +304,10 @@ async fn main() -> std::io::Result<()> {
             .service(ingest_click)
             .service(ingest_view)
             .service(ingest_purchase)
+            .service(
+                SwaggerUi::new("/swagger-ui/{_:.*}")
+                    .url("/api-doc/openapi.json", ApiDoc::openapi()),
+            )
     })
     .bind("0.0.0.0:8080")?
     .run()

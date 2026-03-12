@@ -1076,6 +1076,8 @@ dependencies = [
  "serde",
  "shared",
  "tokio",
+ "utoipa",
+ "utoipa-swagger-ui",
  "uuid",
  "validator",
 ]
@@ -2242,6 +2244,7 @@ dependencies = [
  "quote",
  "regex",
  "syn 2.0.117",
+ "uuid",
 ]
 
 [[package]]

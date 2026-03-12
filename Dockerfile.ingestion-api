@@ -1,7 +1,7 @@
 FROM rust:slim AS builder
 
 RUN rustup target add x86_64-unknown-linux-musl && \
-    apt-get update && apt-get install -y --no-install-recommends musl-tools && \
+    apt-get update && apt-get install -y --no-install-recommends musl-tools curl && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
