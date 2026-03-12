@@ -2,6 +2,7 @@ use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
 use actix_web_validator::Query;
 use clickhouse::Row;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 use utoipa::{IntoParams, OpenApi, ToSchema};
 use utoipa_swagger_ui::SwaggerUi;
 use validator::Validate;
@@ -36,7 +37,14 @@ struct TopProductsQuery {
     metric: Metric,
 }
 
-#[derive(Row, Deserialize, Serialize, ToSchema)]
+#[derive(Row, Deserialize)]
+struct TopProductRow {
+    #[serde(with = "clickhouse::serde::uuid")]
+    product_id: Uuid,
+    count: u64,
+}
+
+#[derive(Serialize, ToSchema)]
 struct TopProduct {
     product_id: String,
     count: u64,
@@ -70,8 +78,12 @@ async fn top_products(
          LIMIT {limit}",
         limit = query.limit,
     );
-    match ch.query(&sql).fetch_all::<TopProduct>().await {
-        Ok(rows) => HttpResponse::Ok().json(rows),
+    match ch.query(&sql).fetch_all::<TopProductRow>().await {
+        Ok(rows) => HttpResponse::Ok().json(
+            rows.into_iter()
+                .map(|r| TopProduct { product_id: r.product_id.to_string(), count: r.count })
+                .collect::<Vec<_>>(),
+        ),
         Err(e) => {
             eprintln!("ClickHouse error: {e}");
             HttpResponse::InternalServerError().finish()

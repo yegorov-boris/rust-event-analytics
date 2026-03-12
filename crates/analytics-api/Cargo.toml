@@ -6,7 +6,8 @@ edition = "2021"
 [dependencies]
 actix-web = "4.13.0"
 actix-web-validator = "5"
-clickhouse = "0.13"
+clickhouse = { version = "0.13", features = ["uuid"] }
+uuid = { version = "1", features = ["serde"] }
 serde = { version = "1.0.228", features = ["derive"] }
 shared = { version = "0.1.0", path = "../shared" }
 tokio = { version = "1.49.0", features = ["full"] }
