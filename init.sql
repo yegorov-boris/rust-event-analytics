@@ -38,7 +38,7 @@ ORDER BY (timestamp, product_id);
 
 CREATE TABLE IF NOT EXISTS views_per_minute (
     minute     DateTime,
-    product_id UInt64,
+    product_id UUID,
     views      UInt64
 ) ENGINE = SummingMergeTree()
 ORDER BY (minute, product_id)
@@ -63,9 +63,9 @@ TTL minute + INTERVAL 24 HOUR;
 CREATE MATERIALIZED VIEW IF NOT EXISTS mv_revenue
 TO revenue_by_minute
 AS SELECT
-FROM purchases
     toStartOfMinute(timestamp)  AS minute,
     sum(quantity * price_cents) AS revenue
+FROM purchases
 GROUP BY minute;
 
 CREATE TABLE IF NOT EXISTS conversions_per_minute (
