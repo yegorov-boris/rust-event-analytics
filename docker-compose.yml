@@ -35,6 +35,17 @@ services:
       clickhouse:
         condition: service_healthy
 
+  perf-tests:
+    build:
+      context: .
+      dockerfile: Dockerfile.perf-tests
+    depends_on:
+      e2e-tests:
+        condition: service_completed_successfully
+    environment:
+      INGESTION_API_URL: http://ingestion-api:8080
+      ANALYTICS_API_URL: http://analytics-api:8080
+
   e2e-tests:
     build:
       context: .

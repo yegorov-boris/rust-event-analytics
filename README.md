@@ -9,5 +9,7 @@ System for collecting and analyzing user events
 | 2h | 10 views (−30min) | 13 views (−30min + −90min) | **product_b** |
 
 ## todo:
+* metrics
+* Kafka and ClickHouse: batch 1000
 * JWT authorization
 * SASL_SSL with Kafka

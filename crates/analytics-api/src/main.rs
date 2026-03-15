@@ -75,7 +75,7 @@ async fn top_products(
         Metric::Views => "views_per_minute",
     };
     let sql = format!(
-        "SELECT product_id, count() AS count \
+        "SELECT product_id, sum(views) AS count \
          FROM {table} \
          WHERE minute >= now() - INTERVAL {hours} HOUR \
          GROUP BY product_id \

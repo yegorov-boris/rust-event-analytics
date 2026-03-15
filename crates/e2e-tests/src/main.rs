@@ -142,6 +142,11 @@ async fn main() {
         "expected product_a to be #1 for 1h, got {:?}",
         results_1h
     );
+    assert_eq!(
+        results_1h[0].count, 10,
+        "expected product_a count=10 for 1h, got {:?}",
+        results_1h
+    );
 
     // --- 2h assertion: product_b is #1 ---
     let results_2h = top_products(&client, &analytics_api, "2h").await;
@@ -153,6 +158,11 @@ async fn main() {
     assert_eq!(
         results_2h[0].product_id, product_b,
         "expected product_b to be #1 for 2h, got {:?}",
+        results_2h
+    );
+    assert_eq!(
+        results_2h[0].count, 13,
+        "expected product_b count=13 for 2h, got {:?}",
         results_2h
     );
 
