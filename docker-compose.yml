@@ -35,6 +35,24 @@ services:
       clickhouse:
         condition: service_healthy
 
+  e2e-tests:
+    build:
+      context: .
+      dockerfile: Dockerfile.e2e-tests
+    depends_on:
+      ingestion-api:
+        condition: service_started
+      analytics-api:
+        condition: service_started
+      clickhouse:
+        condition: service_healthy
+    environment:
+      INGESTION_API_URL: http://ingestion-api:8080
+      ANALYTICS_API_URL: http://analytics-api:8080
+      CLICKHOUSE_URL: http://clickhouse:8123
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: default
+
   kafka:
     image: apache/kafka:3.9.2
     volumes:

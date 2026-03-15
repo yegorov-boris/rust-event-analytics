@@ -1,4 +1,9 @@
 use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
+
+#[get("/health")]
+async fn health() -> impl Responder {
+    HttpResponse::Ok().finish()
+}
 use actix_web_validator::Query;
 use clickhouse::Row;
 use serde::{Deserialize, Serialize};
@@ -109,6 +114,7 @@ async fn main() -> std::io::Result<()> {
     HttpServer::new(move || {
         App::new()
             .app_data(ch.clone())
+            .service(health)
             .service(top_products)
             .service(
                 SwaggerUi::new("/swagger-ui/{_:.*}")
