@@ -1,4 +1,5 @@
 use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
+use actix_web_prom::PrometheusMetricsBuilder;
 use actix_web_validator::Json;
 use chrono::{DateTime, Utc};
 use prost::Message;
@@ -296,9 +297,14 @@ struct ApiDoc;
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     let producer = web::Data::new(build_producer("kafka:9092").await);
+    let prometheus = PrometheusMetricsBuilder::new("api")
+        .endpoint("/metrics")
+        .build()
+        .unwrap();
 
     HttpServer::new(move || {
         App::new()
+            .wrap(prometheus.clone())
             .app_data(producer.clone())
             .service(health)
             .service(ingest_click)

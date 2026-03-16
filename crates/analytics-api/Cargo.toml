@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 actix-web = "4.13.0"
+actix-web-prom = "0.9"
 actix-web-validator = "5"
 clickhouse = { version = "0.13", features = ["uuid"] }
 uuid = { version = "1", features = ["serde"] }

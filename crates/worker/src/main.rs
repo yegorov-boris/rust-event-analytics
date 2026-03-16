@@ -1,5 +1,7 @@
+use axum::{routing::get, Router};
 use clickhouse::Row;
 use futures::StreamExt;
+use prometheus::{Encoder, IntCounter, TextEncoder};
 use prost::Message;
 use rskafka::client::{
     consumer::{StartOffset, StreamConsumerBuilder},
@@ -68,6 +70,7 @@ fn consume_clicks(partition: Arc<PartitionClient>) -> tokio::task::JoinHandle<()
 fn consume_views(
     partition: Arc<PartitionClient>,
     ch: clickhouse::Client,
+    views_processed: IntCounter,
 ) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
         let mut stream = StreamConsumerBuilder::new(partition, StartOffset::Latest)
@@ -96,6 +99,8 @@ fn consume_views(
                                             eprintln!("failed to write view: {e}");
                                         } else if let Err(e) = insert.end().await {
                                             eprintln!("failed to commit view insert: {e}");
+                                        } else {
+                                            views_processed.inc();
                                         }
                                     }
                                     Err(e) => eprintln!("failed to create insert: {e}"),
@@ -132,8 +137,27 @@ fn consume_purchases(partition: Arc<PartitionClient>) -> tokio::task::JoinHandle
     })
 }
 
+async fn metrics_handler() -> String {
+    let encoder = TextEncoder::new();
+    let mut buffer = Vec::new();
+    encoder.encode(&prometheus::gather(), &mut buffer).unwrap();
+    String::from_utf8(buffer).unwrap()
+}
+
 #[tokio::main]
 async fn main() {
+    let views_processed = prometheus::register_int_counter!(
+        "views_processed_total",
+        "View events successfully written to ClickHouse"
+    )
+    .unwrap();
+
+    let metrics_app = Router::new().route("/metrics", get(metrics_handler));
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:9091").await.unwrap();
+    tokio::spawn(async move {
+        axum::serve(listener, metrics_app).await.unwrap();
+    });
+
     let kafka = ClientBuilder::new(vec!["kafka:9092".to_string()])
         .build()
         .await
@@ -155,7 +179,7 @@ async fn main() {
             partition_client_with_retry(&kafka, "events.purchases", partition).await;
 
         handles.push(consume_clicks(clicks));
-        handles.push(consume_views(views, ch.clone()));
+        handles.push(consume_views(views, ch.clone(), views_processed.clone()));
         handles.push(consume_purchases(purchases));
     }
 

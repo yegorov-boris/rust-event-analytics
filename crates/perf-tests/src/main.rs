@@ -106,6 +106,23 @@ async fn main() {
     let analytics_api = std::env::var("ANALYTICS_API_URL")
         .unwrap_or_else(|_| "http://analytics-api:8080".to_string());
 
+    let ingestion_start_rps = std::env::var("INGESTION_START_RPS")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(100.0_f64);
+    let ingestion_max_rps = std::env::var("INGESTION_MAX_RPS")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(10_000.0_f64);
+    let analytics_start_rps = std::env::var("ANALYTICS_START_RPS")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(100.0_f64);
+    let analytics_max_rps = std::env::var("ANALYTICS_MAX_RPS")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(1_000.0_f64);
+
     let ingestion_client = client.clone();
     let ingestion_url = format!("{ingestion_api}/api/v1/events/view");
 
@@ -116,8 +133,8 @@ async fn main() {
 
     let ingestion = tokio::spawn(run_ramp(
         "ingestion-api",
-        100.0,
-        10_000.0,
+        ingestion_start_rps,
+        ingestion_max_rps,
         Duration::from_secs(300),
         Duration::from_secs(1),
         move || {
@@ -133,8 +150,8 @@ async fn main() {
 
     let analytics = tokio::spawn(run_ramp(
         "analytics-api",
-        100.0,
-        1_000.0,
+        analytics_start_rps,
+        analytics_max_rps,
         Duration::from_secs(300),
         Duration::from_secs(30),
         move || {

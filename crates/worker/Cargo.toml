@@ -4,8 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+axum = "0.7"
 clickhouse = { version = "0.13", features = ["uuid"] }
 futures = "0.3"
+prometheus = "0.13"
 prost = "0.13"
 rskafka = "0.5"
 serde = { version = "1", features = ["derive"] }

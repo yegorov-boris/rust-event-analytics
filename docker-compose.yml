@@ -26,6 +26,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.worker
+    ports:
+      - "9091:9091"
     environment:
       CLICKHOUSE_USER: default
       CLICKHOUSE_PASSWORD: default
@@ -42,6 +44,7 @@ services:
     depends_on:
       e2e-tests:
         condition: service_completed_successfully
+    env_file: .env
     environment:
       INGESTION_API_URL: http://ingestion-api:8080
       ANALYTICS_API_URL: http://analytics-api:8080
@@ -117,6 +120,33 @@ services:
       interval: 5s
       retries: 10
 
+  prometheus:
+    image: prom/prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    depends_on:
+      ingestion-api:
+        condition: service_started
+      analytics-api:
+        condition: service_started
+      worker:
+        condition: service_started
+
+  grafana:
+    image: grafana/grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning
+    depends_on:
+      prometheus:
+        condition: service_started
+
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
     ports:
@@ -131,3 +161,4 @@ services:
 volumes:
   kafka-data:
   clickhouse-data:
+  prometheus-data:

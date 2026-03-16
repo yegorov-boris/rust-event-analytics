@@ -1,10 +1,11 @@
 use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
+use actix_web_prom::PrometheusMetricsBuilder;
+use actix_web_validator::Query;
 
 #[get("/health")]
 async fn health() -> impl Responder {
     HttpResponse::Ok().finish()
 }
-use actix_web_validator::Query;
 use clickhouse::Row;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -111,8 +112,14 @@ async fn main() -> std::io::Result<()> {
             .with_password(password),
     );
 
+    let prometheus = PrometheusMetricsBuilder::new("api")
+        .endpoint("/metrics")
+        .build()
+        .unwrap();
+
     HttpServer::new(move || {
         App::new()
+            .wrap(prometheus.clone())
             .app_data(ch.clone())
             .service(health)
             .service(top_products)
