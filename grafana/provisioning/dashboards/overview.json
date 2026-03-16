@@ -3,12 +3,13 @@
   "title": "Event Analytics Overview",
   "schemaVersion": 39,
   "version": 1,
+  "time": { "from": "now-15m", "to": "now" },
   "panels": [
     {
       "id": 1,
       "title": "ingestion-api RPS by path",
       "type": "timeseries",
-      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "gridPos": { "x": 0, "y": 0, "w": 24, "h": 8 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
@@ -25,12 +26,12 @@
       "id": 2,
       "title": "ingestion-api request time p95 by path",
       "type": "timeseries",
-      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+      "gridPos": { "x": 0, "y": 8, "w": 24, "h": 8 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
           "refId": "A",
-          "expr": "histogram_quantile(0.95, sum by (endpoint, le) (rate(api_http_request_duration_seconds_bucket{job=\"ingestion-api\"}[5m])))",
+          "expr": "histogram_quantile(0.95, sum by (endpoint, le) (rate(api_http_requests_duration_seconds_bucket{job=\"ingestion-api\"}[5m])))",
           "legendFormat": "{{endpoint}}"
         }
       ],
@@ -42,7 +43,7 @@
       "id": 3,
       "title": "analytics-api RPS by path",
       "type": "timeseries",
-      "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+      "gridPos": { "x": 0, "y": 16, "w": 24, "h": 8 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
@@ -59,12 +60,12 @@
       "id": 4,
       "title": "analytics-api request time p95 by path",
       "type": "timeseries",
-      "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+      "gridPos": { "x": 0, "y": 24, "w": 24, "h": 8 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
           "refId": "A",
-          "expr": "histogram_quantile(0.95, sum by (endpoint, le) (rate(api_http_request_duration_seconds_bucket{job=\"analytics-api\"}[5m])))",
+          "expr": "histogram_quantile(0.95, sum by (endpoint, le) (rate(api_http_requests_duration_seconds_bucket{job=\"analytics-api\"}[5m])))",
           "legendFormat": "{{endpoint}}"
         }
       ],
@@ -76,7 +77,7 @@
       "id": 5,
       "title": "worker processed events/s by event type",
       "type": "timeseries",
-      "gridPos": { "x": 0, "y": 16, "w": 24, "h": 8 },
+      "gridPos": { "x": 0, "y": 32, "w": 24, "h": 8 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {

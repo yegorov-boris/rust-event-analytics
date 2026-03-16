@@ -122,6 +122,12 @@ async fn main() {
         .ok()
         .and_then(|v| v.parse().ok())
         .unwrap_or(1_000.0_f64);
+    let ramp_duration = Duration::from_secs(
+        std::env::var("RAMP_DURATION_SECS")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(300_u64),
+    );
 
     let ingestion_client = client.clone();
     let ingestion_url = format!("{ingestion_api}/api/v1/events/view");
@@ -135,7 +141,7 @@ async fn main() {
         "ingestion-api",
         ingestion_start_rps,
         ingestion_max_rps,
-        Duration::from_secs(300),
+        ramp_duration,
         Duration::from_secs(1),
         move || {
             let client = ingestion_client.clone();
@@ -152,7 +158,7 @@ async fn main() {
         "analytics-api",
         analytics_start_rps,
         analytics_max_rps,
-        Duration::from_secs(300),
+        ramp_duration,
         Duration::from_secs(30),
         move || {
             let client = analytics_client.clone();
