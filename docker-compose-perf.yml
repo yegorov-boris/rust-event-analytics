@@ -5,6 +5,8 @@ services:
       dockerfile: Dockerfile.ingestion-api
     ports:
       - "8080:8080"
+    environment:
+      KAFKA_BUFFER_SIZE: 1000
     depends_on:
       kafka-init:
         condition: service_completed_successfully
@@ -31,28 +33,21 @@ services:
     environment:
       CLICKHOUSE_USER: default
       CLICKHOUSE_PASSWORD: default
+      KAFKA_BUFFER_SIZE: 1000
     depends_on:
       kafka-init:
         condition: service_completed_successfully
       clickhouse:
         condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
 
   perf-tests:
     build:
       context: .
       dockerfile: Dockerfile.perf-tests
-    depends_on:
-      e2e-tests:
-        condition: service_completed_successfully
-    env_file: .env
-    environment:
-      INGESTION_API_URL: http://ingestion-api:8080
-      ANALYTICS_API_URL: http://analytics-api:8080
-
-  e2e-tests:
-    build:
-      context: .
-      dockerfile: Dockerfile.e2e-tests
     depends_on:
       ingestion-api:
         condition: service_started
@@ -60,12 +55,10 @@ services:
         condition: service_started
       clickhouse:
         condition: service_healthy
+    env_file: .env
     environment:
       INGESTION_API_URL: http://ingestion-api:8080
       ANALYTICS_API_URL: http://analytics-api:8080
-      CLICKHOUSE_URL: http://clickhouse:8123
-      CLICKHOUSE_USER: default
-      CLICKHOUSE_PASSWORD: default
 
   kafka:
     image: apache/kafka:3.9.2

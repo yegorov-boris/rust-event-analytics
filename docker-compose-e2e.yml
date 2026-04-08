@@ -1,0 +1,159 @@
+services:
+  ingestion-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.ingestion-api
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_BUFFER_SIZE: 1
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+
+  analytics-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.analytics-api
+    ports:
+      - "8082:8080"
+    environment:
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: default
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    ports:
+      - "9091:9091"
+    environment:
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: default
+      KAFKA_BUFFER_SIZE: 1
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+      clickhouse:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+
+  e2e-tests:
+    build:
+      context: .
+      dockerfile: Dockerfile.e2e-tests
+    depends_on:
+      ingestion-api:
+        condition: service_started
+      analytics-api:
+        condition: service_started
+      clickhouse:
+        condition: service_healthy
+    environment:
+      INGESTION_API_URL: http://ingestion-api:8080
+      ANALYTICS_API_URL: http://analytics-api:8080
+      CLICKHOUSE_URL: http://clickhouse:8123
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: default
+
+  kafka:
+    image: apache/kafka:3.9.2
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+
+  kafka-init:
+    image: apache/kafka:3.9.2
+    depends_on:
+      kafka:
+        condition: service_started
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        until /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --list; do
+          echo "Waiting for Kafka to be ready..."
+          sleep 2
+        done
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic events.clicks --partitions 3 --replication-factor 1
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic events.views --partitions 3 --replication-factor 1
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic events.purchases --partitions 3 --replication-factor 1
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:25.2
+    ports:
+      - "8123:8123"
+    environment:
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: "default"
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--user", "default", "--password", "default", "--query", "SELECT 1"]
+      interval: 5s
+      retries: 10
+
+  prometheus:
+    image: prom/prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    depends_on:
+      ingestion-api:
+        condition: service_started
+      analytics-api:
+        condition: service_started
+      worker:
+        condition: service_started
+
+  grafana:
+    image: grafana/grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning
+    depends_on:
+      prometheus:
+        condition: service_started
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    ports:
+      - "8081:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+    depends_on:
+      kafka:
+        condition: service_started
+
+volumes:
+  kafka-data:
+  clickhouse-data:
+  prometheus-data:

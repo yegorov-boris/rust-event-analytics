@@ -46,10 +46,11 @@ async fn partition_client_with_retry(
     }
 }
 
-fn consume_clicks(partition: Arc<PartitionClient>) -> tokio::task::JoinHandle<()> {
+fn consume_clicks(partition: Arc<PartitionClient>, buffer_size: i32) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
         let mut stream = StreamConsumerBuilder::new(partition, StartOffset::Latest)
             .with_max_wait_ms(500)
+            .with_max_batch_size(buffer_size)
             .build();
         while let Some(result) = stream.next().await {
             match result {
@@ -71,10 +72,12 @@ fn consume_views(
     partition: Arc<PartitionClient>,
     ch: clickhouse::Client,
     views_processed: IntCounter,
+    buffer_size: i32,
 ) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
         let mut stream = StreamConsumerBuilder::new(partition, StartOffset::Latest)
             .with_max_wait_ms(500)
+            .with_max_batch_size(buffer_size)
             .build();
         while let Some(result) = stream.next().await {
             match result {
@@ -116,10 +119,11 @@ fn consume_views(
     })
 }
 
-fn consume_purchases(partition: Arc<PartitionClient>) -> tokio::task::JoinHandle<()> {
+fn consume_purchases(partition: Arc<PartitionClient>, buffer_size: i32) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
         let mut stream = StreamConsumerBuilder::new(partition, StartOffset::Latest)
             .with_max_wait_ms(500)
+            .with_max_batch_size(buffer_size)
             .build();
         while let Some(result) = stream.next().await {
             match result {
@@ -158,6 +162,11 @@ async fn main() {
         axum::serve(listener, metrics_app).await.unwrap();
     });
 
+    let buffer_size: i32 = std::env::var("KAFKA_BUFFER_SIZE")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(1000);
+
     let kafka = ClientBuilder::new(vec!["kafka:9092".to_string()])
         .build()
         .await
@@ -178,9 +187,9 @@ async fn main() {
         let purchases =
             partition_client_with_retry(&kafka, "events.purchases", partition).await;
 
-        handles.push(consume_clicks(clicks));
-        handles.push(consume_views(views, ch.clone(), views_processed.clone()));
-        handles.push(consume_purchases(purchases));
+        handles.push(consume_clicks(clicks, buffer_size));
+        handles.push(consume_views(views, ch.clone(), views_processed.clone(), buffer_size));
+        handles.push(consume_purchases(purchases, buffer_size));
     }
 
     for handle in handles {

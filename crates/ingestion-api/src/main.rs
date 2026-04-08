@@ -6,7 +6,8 @@ use prost::Message;
 use prost_types::Timestamp;
 use rskafka::{
     client::{
-        partition::{Compression, PartitionClient, UnknownTopicHandling},
+        partition::UnknownTopicHandling,
+        producer::{aggregator::RecordAggregator, BatchProducer, BatchProducerBuilder},
         ClientBuilder,
     },
     record::Record,
@@ -198,7 +199,7 @@ async fn ingest_purchase(
 }
 
 async fn produce(
-    partition: Arc<PartitionClient>,
+    producer: Arc<BatchProducer<RecordAggregator>>,
     key: String,
     timestamp: DateTime<Utc>,
     message: impl Message,
@@ -213,10 +214,7 @@ async fn produce(
         headers: BTreeMap::new(),
         timestamp,
     };
-    partition
-        .produce(vec![record], Compression::NoCompression)
-        .await
-        .ok();
+    producer.produce(record).await.ok();
 }
 
 fn to_timestamp(dt: DateTime<Utc>) -> Timestamp {
@@ -227,14 +225,17 @@ fn to_timestamp(dt: DateTime<Utc>) -> Timestamp {
 }
 
 struct EventProducer {
-    clicks: Vec<Arc<PartitionClient>>,
-    views: Vec<Arc<PartitionClient>>,
-    purchases: Vec<Arc<PartitionClient>>,
+    clicks: Vec<Arc<BatchProducer<RecordAggregator>>>,
+    views: Vec<Arc<BatchProducer<RecordAggregator>>>,
+    purchases: Vec<Arc<BatchProducer<RecordAggregator>>>,
     counter: AtomicU64,
 }
 
 impl EventProducer {
-    fn next(&self, partitions: &[Arc<PartitionClient>]) -> Arc<PartitionClient> {
+    fn next(
+        &self,
+        partitions: &[Arc<BatchProducer<RecordAggregator>>],
+    ) -> Arc<BatchProducer<RecordAggregator>> {
         let idx = self.counter.fetch_add(1, Ordering::Relaxed) as usize % partitions.len();
         Arc::clone(&partitions[idx])
     }
@@ -244,13 +245,18 @@ async fn partition_client_with_retry(
     client: &rskafka::client::Client,
     topic: &str,
     partition: i32,
-) -> Arc<PartitionClient> {
+    buffer_size: usize,
+) -> Arc<BatchProducer<RecordAggregator>> {
     loop {
         match client
             .partition_client(topic, partition, UnknownTopicHandling::Retry)
             .await
         {
-            Ok(pc) => return Arc::new(pc),
+            Ok(pc) => {
+                let producer = BatchProducerBuilder::new(Arc::new(pc))
+                    .build(RecordAggregator::new(buffer_size));
+                return Arc::new(producer);
+            }
             Err(e) => {
                 eprintln!("Waiting for {topic}:{partition}: {e}");
                 tokio::time::sleep(std::time::Duration::from_secs(1)).await;
@@ -259,7 +265,7 @@ async fn partition_client_with_retry(
     }
 }
 
-async fn build_producer(brokers: &str) -> EventProducer {
+async fn build_producer(brokers: &str, buffer_size: usize) -> EventProducer {
     let client = ClientBuilder::new(vec![brokers.to_string()])
         .build()
         .await
@@ -270,9 +276,15 @@ async fn build_producer(brokers: &str) -> EventProducer {
     let mut purchases = Vec::new();
 
     for partition in 0..3 {
-        clicks.push(partition_client_with_retry(&client, "events.clicks", partition).await);
-        views.push(partition_client_with_retry(&client, "events.views", partition).await);
-        purchases.push(partition_client_with_retry(&client, "events.purchases", partition).await);
+        clicks.push(
+            partition_client_with_retry(&client, "events.clicks", partition, buffer_size).await,
+        );
+        views.push(
+            partition_client_with_retry(&client, "events.views", partition, buffer_size).await,
+        );
+        purchases.push(
+            partition_client_with_retry(&client, "events.purchases", partition, buffer_size).await,
+        );
     }
 
     EventProducer {
@@ -296,7 +308,11 @@ struct ApiDoc;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    let producer = web::Data::new(build_producer("kafka:9092").await);
+    let buffer_size: usize = std::env::var("KAFKA_BUFFER_SIZE")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(1000);
+    let producer = web::Data::new(build_producer("kafka:9092", buffer_size).await);
     let prometheus = PrometheusMetricsBuilder::new("api")
         .endpoint("/metrics")
         .build()
