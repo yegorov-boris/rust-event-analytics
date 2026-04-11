@@ -35,6 +35,12 @@ see containers status
 docker ps -a --format "table {{.Names}}\t{{.Status}}"
 ```
 
+[Kafka UI](http://127.0.0.1:8081/)
+
+[Ingestion API](http://127.0.0.1:8080/swagger-ui/)
+
+Generate a random view event json: crates/ingestion-api/examples/random_view_event.rs
+
 ## todo:
 * JWT authorization
 * SASL_SSL with Kafka

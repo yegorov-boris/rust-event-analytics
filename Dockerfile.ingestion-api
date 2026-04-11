@@ -1,7 +1,6 @@
 FROM rust:slim AS builder
 
-RUN rustup target add x86_64-unknown-linux-musl && \
-    apt-get update && apt-get install -y --no-install-recommends musl-tools curl && \
+RUN apt-get update && apt-get install -y --no-install-recommends curl && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -9,13 +8,15 @@ WORKDIR /app
 COPY Cargo.toml Cargo.lock ./
 COPY crates/ crates/
 
-RUN RUSTFLAGS='-C target-feature=+crt-static' \
-    cargo build --release --target x86_64-unknown-linux-musl -p ingestion-api
+RUN cargo build -p ingestion-api
 
-FROM scratch
+FROM debian:bookworm-slim
 
-COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/ingestion-api /ingestion-api
+RUN apt-get update && apt-get install -y --no-install-recommends gdbserver && \
+    rm -rf /var/lib/apt/lists/*
 
-EXPOSE 8080
+COPY --from=builder /app/target/debug/ingestion-api /ingestion-api
 
-CMD ["/ingestion-api"]
+EXPOSE 8080 2345
+
+CMD ["gdbserver", "0.0.0.0:2345", "/ingestion-api"]

@@ -5,6 +5,7 @@ services:
       dockerfile: Dockerfile.ingestion-api
     ports:
       - "8080:8080"
+      - "2345:2345"
     environment:
       KAFKA_BUFFER_SIZE: 1
     depends_on:
@@ -77,6 +78,10 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
 
   kafka-init:
     image: apache/kafka:3.9.2
